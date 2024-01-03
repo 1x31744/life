@@ -1,7 +1,8 @@
-use colored::Colorize;
+use colored::{Colorize};
 use std::{thread, time};
+use rand::prelude::*;
 
-const GRID_SIZE: (f32, f32) = (10.0, 10.0);
+const GRID_SIZE: (f32, f32) = (118.0, 70.0);
 
 struct GameState {
     grid: Vec<Vec<bool>>,
@@ -15,8 +16,8 @@ impl GameState{
         //* creates a grid that is a 2D vector with all tiles having a value of false with size of GRID_SIZE.1 (casted to usize)
         // makes a vector 40 tiles wide and each vector has it's own 40 cells
             grid: vec![vec![false; GRID_SIZE.0 as usize]; GRID_SIZE.1 as usize],
-            waitTime: 1,
-            running: true
+            waitTime: 500,
+            running: true,
         }
     }
 
@@ -44,34 +45,34 @@ impl GameState{
     pub fn updt(&mut self){
         let mut coords: Vec<(usize, usize)> = vec![]; //stores the co-ordinates of the cells that need to be flipped
 
-        //* draw game */
-        println!("{}", self.draw());
-
 
         for y in 0..GRID_SIZE.1 as usize{
-            let up =  if y > 0 {y-1} else {GRID_SIZE.0 as usize - 1};
-            let down = if y < GRID_SIZE.0 as usize - 1 {y + 1} else { 0 };
+            let up =  if y > 0 {y - 1} else {GRID_SIZE.1 as usize - 1};
+            let down = if y < GRID_SIZE.1 as usize - 1 {y + 1} else { 0 };
+            //println!("y axis: {}, {}, {}", y, up, down);
 
             for x in 0..GRID_SIZE.0 as usize{
-                let right = if x > 0 {x - 1} else {GRID_SIZE.1 as usize-1};
-                let left = if x < GRID_SIZE.1 as usize - 1 { x + 1 } else { 0 };
+                let left = if x > 0 {x - 1} else {GRID_SIZE.0 as usize - 1};
+                let right = if x < GRID_SIZE.0 as usize - 1 { x + 1 } else { 0 };
+                //println!("x axis: {}, {}, {}", x, right, left);
 
 
                 //we love circles
-                let neighbours = self.grid[left][y] as u8 
-                + self.grid[left][up] as u8 
-                + self.grid[x][up] as u8 
-                + self.grid[right][up] as u8 
-                + self.grid[right][y] as u8
-                + self.grid[right][down] as u8 
-                + self.grid[x][down] as u8 
-                + self.grid[left][down] as u8;
+                let neighbours 
+                = self.grid[y][left] as u8 
+                + self.grid[up][left] as u8 
+                + self.grid[up][left] as u8 
+                + self.grid[up][right] as u8 
+                + self.grid[y][right] as u8
+                + self.grid[down][right] as u8 
+                + self.grid[down][x] as u8 
+                + self.grid[down][left] as u8;
 
-                if self.grid[x][y] && (neighbours < 2 || neighbours > 3) {
-                    coords.push((x,y));
+                if self.grid[y][x] && (neighbours < 2 || neighbours > 3) {
+                    coords.push((y,x));
                 }
-                else if !self.grid[x][y] && neighbours == 3 {
-                    coords.push((x,y));
+                else if !self.grid[y][x] && neighbours == 3 {
+                    coords.push((y,x));
                 }
             }
         }
@@ -84,20 +85,66 @@ impl GameState{
 
 
 fn main(){
-    let running: bool = true;
     let mut state: GameState = GameState::new();
-    let drawState = &state;
-    state.grid[5][6] = true;
-    state.grid[6][6] = true;
-    state.grid[6][7] = true;
-    state.grid[6][8] = true;
+    let startType: &str = "rand";
+    let chanceForLife: u8 = 50;
 
-    while state.running{
-        state.updt();
-        thread::sleep(time::Duration::from_secs(state.waitTime));
-        print!("\x1B[2J\x1B[1;1H");
+    if startType == "rand"{
+        for x in &mut state.grid{
+            for tile in x{
+                let randNum = thread_rng().gen_range(0..100);
+                if randNum <= chanceForLife {
+                    *tile = true
+                }
+                else{
+                    *tile = false
+                }
+            }
+        }
     }
 
+    while state.running{
 
+        //* draw game */
+        let noColorOutput: String = state.draw();
+        let mut colorOutput = String::from("");
+        let mut printingX: bool = true;
+        for c in noColorOutput.chars(){
+            if c == 'X'{
+                //println!("we are printing X");
+                if !printingX{
+                    print!("{}", colorOutput.as_str().green());
+                    colorOutput = String::from("");
+                }
+                colorOutput.push_str("X ");
+                printingX = true;
+            }
+            else if c == 'O' {
+                //println!("we are printing O");
+                if printingX{
+                    print!("{}", colorOutput.as_str().red());
+                    colorOutput = String::from("");
+                }
+                colorOutput.push_str("O ");
+                printingX = false;
+            }
 
+            if c == 0xA as char {
+                colorOutput.push_str("\n")
+            }
+        }
+        //print final piece as not printed in for loop
+
+        if colorOutput.chars().nth(0).unwrap() == 'X'{
+            print!("{}", colorOutput.as_str().red());
+        }
+        else {
+            print!("{}", colorOutput.as_str().green());
+        }
+        //print!("\n{}", noColorOutput);
+
+        state.updt();
+        thread::sleep(time::Duration::from_millis(state.waitTime));
+        clearscreen::clear();
+    }
 }
